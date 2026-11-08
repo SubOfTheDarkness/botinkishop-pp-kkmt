@@ -33,12 +33,13 @@
         <option value="">Все категории</option>
         {% for cat in categories %}
         <option value="{{ cat.category }}" {% if category_filter == cat.category %}selected{% endif %}>
-          {% if cat.category == 'Электроника' %}📱
-          {% elif cat.category == 'Одежда' %}👕
-          {% elif cat.category == 'Книги' %}📚
-          {% elif cat.category == 'Фрукты' %}🍎
-          {% elif cat.category == 'Обувь' %}👢
-          {% else %}📦{% endif %}
+          {% if cat.category == 'Кроссовки' %}👟
+          {% elif cat.category == 'Ботинки' %}🥾
+          {% elif cat.category == 'Туфли' %}👞
+          {% elif cat.category == 'Сандалии' %}🩴
+          {% elif cat.category == 'Сапоги' %}👢
+          {% elif cat.category == 'Слипоны' %}🥿
+          {% else %}👟{% endif %}
           {{ cat.category }}
         </option>
         {% endfor %}
@@ -62,7 +63,7 @@
   <div class="product-grid">
     {% for product in products %}
     <a href="{{ url_for('catalogue.product', product_id=product.id) }}" style="text-decoration:none; color:inherit;">
-      <div class="product-card">
+      <div class="product-card" style="{% if product.total_stock <= 3 %}background:#fff1f2; border:1px solid #fca5a5;{% endif %}">
         {% if product.discount and product.discount > 0 %}
           <span class="badge">−{{ product.discount }}%</span>
         {% endif %}
@@ -77,12 +78,13 @@
         
         <div class="card-body">
           <span class="category">
-            {% if product.category == 'Электроника' %}📱
-            {% elif product.category == 'Одежда' %}👕
-            {% elif product.category == 'Книги' %}📚
-            {% elif product.category == 'Фрукты' %}🍎
-            {% elif product.category == 'Обувь' %}👢
-            {% else %}📦{% endif %}
+            {% if product.category == 'Кроссовки' %}👟
+            {% elif product.category == 'Ботинки' %}🥾
+            {% elif product.category == 'Туфли' %}👞
+            {% elif product.category == 'Сандалии' %}🩴
+            {% elif product.category == 'Сапоги' %}👢
+            {% elif product.category == 'Слипоны' %}🥿
+            {% else %}👟{% endif %}
             {{ product.category }}
           </span>
           <h3>{{ product.title }}</h3>
@@ -93,23 +95,31 @@
           {% else %}
             <span class="price">{{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽</span>
           {% endif %}
-          
-          {% set in_cart = namespace(yes=false) %}
-          {% for cart_item in carts %}
-            {% if product.id == cart_item.product_id %}
-              {% set in_cart.yes = true %}
-            {% endif %}
-          {% endfor %}
 
-          {% if in_cart.yes %}
-            <button class="btn btn-outline in-cart-btn" disabled style="width:100%; cursor:default; opacity:0.7;" onclick="event.preventDefault(); event.stopPropagation();">
-              ✅ В корзине
-            </button>
-          {% else %}
-            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" style="width:100%;" onclick="event.preventDefault(); event.stopPropagation();">
-              🛒 В корзину
-            </button>
-          {% endif %}
+          <div style="
+            margin:0.7rem 0;
+            padding:0.5rem;
+            border-radius:8px;
+            font-size:0.9rem;
+            {% if product.total_stock <= 3 %}
+                background:#fee2e2;
+                color:#991b1b;
+            {% else %}
+                background:var(--primary-light);
+                color:var(--text-light);
+            {% endif %}">
+            {% if product.total_stock == 0 %}
+                Нет в наличии
+            {% elif product.total_stock <= 5 %}
+                Мало — {{ product.total_stock }} пар
+            {% else %}
+                Много — {{ product.total_stock }} пар
+            {% endif %}
+        </div>
+          
+          <div class="btn btn-primary" style="width:100%; text-align:center; box-sizing:border-box;">
+            Подробнее
+          </div>
         </div>
       </div>
     </a>
@@ -126,41 +136,4 @@
   </div>
   {% endif %}
 </main>
-
-<script>
-document.querySelectorAll('.add-to-cart-btn').forEach(function(button) {
-  button.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    const btn = this;
-    const productId = btn.getAttribute('data-product-id');
-    
-    fetch('{{ url_for("catalogue.to_cart") }}', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: 1, product_id: productId })
-    })
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (data.status === 'success') {
-        btn.disabled = true;
-        btn.textContent = '✅ В корзине';
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline', 'in-cart-btn');
-        btn.style.opacity = '0.7';
-        btn.style.cursor = 'default';
-        showToast("Добавлено в корзину", "success");
-      }
-      else if (data.status === 'error') {
-        console.warn('Ошибка:', data.message);
-        showToast(data.message, "error");
-      }
-    })
-    .catch(function(err) {
-      console.error('Ошибка:', err);
-      showToast(err, "error");
-    });
-  });
-});
-</script>
 {% endblock %}

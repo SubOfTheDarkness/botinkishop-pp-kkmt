@@ -1,6 +1,12 @@
 import flask
 import os
+from apscheduler.schedulers.background import BackgroundScheduler
 from app.db import get_db
+
+def run_discount_update(app):
+    with app.app_context():
+        from app import db
+        db.update_auto_discounts()
 
 def create_app():
     app = flask.Flask(__name__, instance_relative_config=True)
@@ -12,6 +18,21 @@ def create_app():
     
     from . import db
     db.init_app(app)
+
+    with app.app_context():
+        db.update_auto_discounts()
+
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        func=lambda: run_discount_update(app),
+        trigger='cron',
+        day=1,
+        hour=0,
+        minute=0
+    )
+    scheduler.start()
+    app.extensions['scheduler'] = scheduler
+
     from . import cart
     app.register_blueprint(cart.bp)
     from . import admin

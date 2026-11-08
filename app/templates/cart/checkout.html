@@ -68,7 +68,10 @@
       <div style="display:flex; justify-content:space-between; margin-bottom:0.75rem;">
         <span><a href="{{ url_for('catalogue.product', product_id=item.id) }}" 
                      style="color:inherit; text-decoration:none;">
-                    {{ item.title }} </a> × {{ item.quantity }}</span>
+                    {{ item.title }} </a>
+                    <br>
+                    <small style="color:var(--text-light);">Размер: {{ item.size }}</small>
+                    × {{ item.quantity }}</span>
         <span>{{ "{:,.0f}".format(item.subtotal * item.quantity).replace(",", " ") }} ₽</span>
       </div>
       {% endfor %}
@@ -82,7 +85,7 @@
       
       <div style="display:flex; justify-content:space-between; font-size:1.2rem; font-weight:700; margin-top:1rem; padding-top:1rem; border-top:1px solid #e2e8f0;">
         <span>Итого</span>
-        <span style="color:#f97316;">{{ "{:,.0f}".format(total).replace(",", " ") }} ₽</span>
+        <span style="color:var(--primary);">{{ "{:,.0f}".format(total).replace(",", " ") }} ₽</span>
       </div>
     </div>
   </aside>

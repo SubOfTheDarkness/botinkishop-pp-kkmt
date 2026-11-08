@@ -62,8 +62,7 @@ def profile():
     db = get_db()
 
     user_orders = db.execute(
-        'SELECT o.id, o.name, o.phone_number, o.email, o.address_delivery,'
-        ' o.pay_method, o.comment'
+        'SELECT o.id, o.name, o.phone_number, o.email, o.address_delivery, o.pay_method, o.comment, o.created_at'
         ' FROM orders o'
         ' WHERE o.user_id = ?'
         ' ORDER BY o.id DESC',

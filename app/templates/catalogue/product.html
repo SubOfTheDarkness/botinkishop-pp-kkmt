@@ -1,144 +1,183 @@
+
 {% extends "base.html" %}
 
 {% block title %}{{ product.title }} — Botinki Shop{% endblock %}
 
 {% block breadcrumbs %}
 <nav style="max-width:1200px; margin:1.5rem auto 0; padding:0 2rem; font-size:0.9rem; color:#64748b;">
-  <a href="{{ url_for('catalogue.catalogue') }}" style="color:#f97316; text-decoration:none;">Каталог</a> /
-  <span style="color:#64748b;">{{ product.category }}</span> /
-  <span style="color:#64748b;">{{ product.title }}</span>
+  <a href="{{ url_for('catalogue.catalogue') }}" style="color:var(--primary); text-decoration:none;">Каталог</a> /
+  <span>{{ product.category }}</span> /
+  <span>{{ product.title }}</span>
 </nav>
 {% endblock %}
 
 {% block content %}
 <main class="container" style="margin-top:1rem;">
   <div class="product-detail">
-    <!-- Галерея -->
     <div class="gallery">
       {% if product.image %}
         <img src="{{ product.image }}" alt="{{ product.title }}" style="width:100%; border-radius:12px;">
       {% else %}
-        <img src="https://via.placeholder.com/600x400?text=Нет+фото" alt="{{ product.title }}" style="width:100%; border-radius:12px;">
+        <img src="https://via.placeholder.com/400x300?text=Нет+фото" alt="{{ product.title }}">
       {% endif %}
     </div>
 
-    <!-- Информация -->
     <div class="info">
-      {% if product.category == 'Электроника' %}
-        {% set cat_icon = '📱' %}
-      {% elif product.category == 'Одежда' %}
-        {% set cat_icon = '👕' %}
-      {% elif product.category == 'Книги' %}
-        {% set cat_icon = '📚' %}
-      {% elif product.category == 'Фрукты' %}
-        {% set cat_icon = '🍎' %}
-      {% elif product.category == 'Обувь' %}
-        {% set cat_icon = '👢' %}
-      {% else %}
-        {% set cat_icon = '📦' %}
-      {% endif %}
-      
-      <span class="category" style="font-size:0.9rem;">{{ cat_icon }} {{ product.category }}</span>
+      <span class="category" style="font-size:0.9rem;">👢 {{ product.category }}</span>
       <h1>{{ product.title }}</h1>
-      
-      {% if product.description %}
-      <p style="margin:1.5rem 0; line-height:1.7;">
-        {{ product.description }}
-      </p>
+
+      {% if product.manufacturer %}
+        <p><strong>Производитель:</strong> {{ product.manufacturer }}</p>
       {% endif %}
-      
+
+      {% if product.composition %}
+        <p><strong>Состав:</strong> {{ product.composition }}</p>
+      {% endif %}
+
+      {% if product.description %}
+        <p style="margin:1.5rem 0; line-height:1.7;">
+          {{ product.description }}
+        </p>
+      {% endif %}
+
       {% if product.discount and product.discount > 0 %}
         {% set new_price = (product.price * (1 - product.discount/100))|round|int %}
-        <div style="font-size:2rem; font-weight:700; color:#ea580c; margin:1rem 0;">
+        <div style="font-size:2rem; font-weight:700; color:var(--primary-hover); margin:1rem 0;">
           {{ "{:,.0f}".format(new_price).replace(",", " ") }} ₽
         </div>
-        <span style="font-size:1.1rem; color:#64748b; text-decoration:line-through; margin-right:1rem;">{{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽</span>
-        <span style="display:inline-block; background:#22c55e; color:white; padding:0.3rem 0.8rem; border-radius:100px; font-size:0.85rem; font-weight:600;">−{{ product.discount }}%</span>
-      {% else %}
-        <div style="font-size:2rem; font-weight:700; color:#ea580c; margin:1rem 0;">
+        <span style="font-size:1.1rem; color:#64748b; text-decoration:line-through; margin-right:1rem;">
           {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
-        </div> 
+        </span>
+        <span style="display:inline-block; background:#22c55e; color:white; padding:0.3rem 0.8rem; border-radius:100px; font-size:0.85rem; font-weight:600;">
+          −{{ product.discount }}%
+        </span>
+      {% else %}
+        <div style="font-size:2rem; font-weight:700; color:var(--primary-hover); margin:1rem 0;">
+          {{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽
+        </div>
       {% endif %}
 
-      {% set in_cart = namespace(yes=false) %}
-      {% for cart_item in carts %}
-        {% if product.id == cart_item.product_id %}
-          {% set in_cart.yes = true %}
-        {% endif %}
-      {% endfor %}
+      {% if sizes %}
+        {% set available_sizes = sizes|selectattr('quantity', 'gt', 0)|list %}
+        {% if available_sizes %}
+          <div style="margin:1.5rem 0;">
+            <strong>Размеры:</strong>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.7rem;">
+              {% for size in sizes %}
+                <button
+                  type="button"
+                  class="size-option"
+                  data-size="{{ size.size }}"
+                  data-stock="{{ size.quantity }}"
+                  {% if size.quantity <= 0 %}disabled{% endif %}
+                  style="padding:0.6rem 0.9rem; border:1px solid var(--border); border-radius:8px; background:{% if size.quantity <= 0 %}#eeeeee{% else %}white{% endif %}; color:{% if size.quantity <= 0 %}#999{% else %}var(--text){% endif %}; cursor:{% if size.quantity <= 0 %}not-allowed{% else %}pointer{% endif %};">
+                  {{ size.size }}
+                </button>
+              {% endfor %}
+            </div>
+            <p id="stock-info" style="margin-top:0.7rem; color:var(--text-light);">
+              Выберите размер
+            </p>
+          </div>
 
-      <div class="quantity-selector" id="qty-selector" style="min-height:56px;">
-        {% if in_cart.yes %}
+          <div class="quantity-selector" id="qty-selector" style="min-height:56px;">
+            <span>Количество:</span>
+            <button type="button" onclick="changeQty(-1)">−</button>
+            <span id="qty-display">1</span>
+            <button type="button" onclick="changeQty(1)">+</button>
+          </div>
+
+          {% if g.user %}
+            <button class="btn btn-primary" id="add-to-cart-btn"
+                    data-product-id="{{ product.id }}"
+                    style="width:100%; font-size:1.1rem; margin-bottom:0.5rem;"
+                    disabled>
+              🛒 Добавить в корзину
+            </button>
+          {% else %}
+            <p style="margin-top:1rem;">Чтобы добавить товар в корзину, войдите в аккаунт.</p>
+          {% endif %}
         {% else %}
-          <span>Количество:</span>
-          <button type="button" onclick="changeQty(-1)">−</button>
-          <span id="qty-display">1</span>
-          <button type="button" onclick="changeQty(1)">+</button>
+          <p style="color:#dc2626; margin-top:1rem;">Товара сейчас нет в наличии.</p>
         {% endif %}
-      </div>
-      
-      {% if in_cart.yes %}
-      <button class="btn btn-outline" disabled style="width:100%; font-size:1.1rem; cursor:default; opacity:0.7;">
-        ✅ Уже в корзине
-      </button>
       {% else %}
-      <button class="btn btn-primary" id="add-to-cart-btn" data-product-id="{{ product.id }}" 
-              style="width:100%; font-size:1.1rem; margin-bottom:0.5rem;">
-        🛒 Добавить в корзину
-      </button>
+        <p style="color:#dc2626; margin-top:1rem;">Размеры товара не добавлены.</p>
       {% endif %}
     </div>
   </div>
 </main>
 
 <script>
+  let selectedSize = null;
+  let maxStock = 0;
+  let currentQty = 1;
+
+  const sizeButtons = document.querySelectorAll('.size-option');
+  const qtyDisplay = document.getElementById('qty-display');
+  const stockInfo = document.getElementById('stock-info');
+  const addBtn = document.getElementById('add-to-cart-btn');
+
+  sizeButtons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      sizeButtons.forEach(function(item) {
+        item.style.background = 'white';
+        item.style.borderColor = 'var(--border)';
+        item.style.color = 'var(--text)';
+      });
+
+      this.style.background = 'var(--primary-light)';
+      this.style.borderColor = 'var(--primary)';
+      this.style.color = 'var(--primary-hover)';
+
+      selectedSize = this.dataset.size;
+      maxStock = parseInt(this.dataset.stock);
+      currentQty = 1;
+
+      qtyDisplay.textContent = currentQty;
+      stockInfo.textContent = 'В наличии: ' + maxStock + ' пар';
+
+      if (addBtn) addBtn.disabled = false;
+    });
+  });
+
   function changeQty(delta) {
-    const display = document.getElementById('qty-display');
-    const btn = document.getElementById('add-to-cart-btn');
-    let current = parseInt(display.textContent);
-    current = Math.max(1, current + delta);
-    display.textContent = current;
-    if (btn) btn.setAttribute('data-qty', current);
+    if (!selectedSize) return;
+
+    currentQty = Math.max(1, Math.min(maxStock, currentQty + delta));
+    qtyDisplay.textContent = currentQty;
   }
 
-  const addBtn = document.getElementById('add-to-cart-btn');
   if (addBtn) {
-    addBtn.setAttribute('data-qty', '1');
     addBtn.addEventListener('click', function() {
-      const btn = this;
-      const productId = btn.getAttribute('data-product-id');
-      const qty = btn.getAttribute('data-qty');
-      
+      if (!selectedSize) {
+        showToast('Сначала выберите размер', 'error');
+        return;
+      }
+
       fetch('{{ url_for("catalogue.to_cart") }}', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: parseInt(qty), product_id: productId })
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          value: currentQty,
+          product_id: this.dataset.productId,
+          size: selectedSize
+        })
       })
-      .then(function(res) { return res.json(); })
+      .then(function(response) {
+        return response.json();
+      })
       .then(function(data) {
-        if (data.status == 'success') {
-          btn.textContent = '✅ Уже в корзине';
-          btn.classList.remove('btn-primary');
-          btn.classList.add('btn-outline');
-          btn.disabled = true;
-          btn.style.opacity = '0.7';
-          btn.style.cursor = 'default';
-          showToast("Добавлено в корзину", 'success');
-          
-          const selector = document.getElementById('qty-selector');
-          if (selector) {
-            selector.innerHTML = '';
-            selector.style.minHeight = '56px';
-          }
-        }
-        if (data.status == 'error') {
-          console.warn('Ошибка:', data.message);
-          showToast(data.message, "error");
+        if (data.status === 'success') {
+          showToast('Добавлено в корзину', 'success');
+          addBtn.textContent = '✅ Уже в корзине';
+          addBtn.disabled = true;
+        } else {
+          showToast(data.message, 'error');
         }
       })
-      .catch(function(err) {
-        console.error('Ошибка:', err);
-        showToast(err, 'error');
+      .catch(function(error) {
+        console.error(error);
+        showToast('Не удалось добавить товар в корзину', 'error');
       });
     });
   }

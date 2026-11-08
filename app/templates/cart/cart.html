@@ -32,7 +32,7 @@
               {% if item.image %}
                 <img src="{{ item.image }}" alt="{{ item.title }}" class="cart-item-image">
               {% else %}
-                <img src="https://via.placeholder.com/60?text=Нет" alt="{{ item.title }}" class="cart-item-image">
+                <img src="{{ url_for('static', filename='images/picture.png') }}" alt="{{ item.title }}" class="cart-item-image">
               {% endif %}
               <div>
                 <strong>
@@ -42,6 +42,7 @@
                   </a>
                 </strong>
                 <br><small style="color:#64748b;">{{ item.category }}</small>
+                <br><small style="color:var(--text-light);">Размер: {{ item.size }}</small>
               </div>
             </div>
           </td>

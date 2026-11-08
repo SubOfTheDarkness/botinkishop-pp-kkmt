@@ -1,8 +1,10 @@
+DROP TABLE IF EXISTS order_products;
+DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS user;
 DROP TABLE IF EXISTS cart;
+DROP TABLE IF EXISTS product_size;
 DROP TABLE IF EXISTS product;
-DROP TABLE IF EXISTS orders;
-DROP TABLE IF EXISTS order_products;
+
 CREATE TABLE user (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
@@ -11,11 +13,12 @@ CREATE TABLE user (
 
 CREATE TABLE cart (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    FOREIGN KEY (product_id) REFERENCES product(id),
-    FOREIGN KEY (user_id) REFERENCES user (id)
+    user_id INTEGER NOT NULL,
+    size INTEGER NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
 CREATE TABLE product (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +26,7 @@ CREATE TABLE product (
     description TEXT,
     price REAL NOT NULL,
     discount INTEGER DEFAULT 0,
+    auto_discount INTEGER NOT NULL DEFAULT 0,
     category TEXT,
     image TEXT,
     manufacturer TEXT,
@@ -45,29 +49,45 @@ CREATE TABLE orders (
     address_delivery TEXT,
     pay_method INTEGER(1) NOT NULL DEFAULT(0),
     comment TEXT,
+    status TEXT NOT NULL DEFAULT 'Новый',
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (user_id) REFERENCES user (id)
 );
-CREATE TABLE order_products(
+CREATE TABLE order_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
     product TEXT NOT NULL,
     quantity INTEGER NOT NULL,
-    price INTEGER NOT NULL,
-    PRIMARY KEY(order_id,product),
-    FOREIGN KEY (order_id) REFERENCES orders (id)
+    price REAL NOT NULL,
+    size INTEGER NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE RESTRICT,
+    FOREIGN KEY (product_id) REFERENCES product(id) ON DELETE RESTRICT
 );
 
 INSERT INTO product (
     title, description, price, discount, category, image,
     manufacturer, composition
-) VALUES (
+) VALUES
+(
     'Ботинки',
     'Ботинки крутые зимние',
     4000,
-    15,
-    'Обувь',
+    30,
+    'Ботинки',
     '/static/images/boots.jpg',
     'Botinki Shop',
     'Натуральная кожа, мех, резиновая подошва'
+),
+(
+    'Кроссовки',
+    'Удобные повседневные кроссовки для прогулок и активного отдыха',
+    3500,
+    10,
+    'Кроссовки',
+    '/static/images/sneakers.jpg',
+    'Botinki Shop',
+    'Текстиль, искусственная кожа, резиновая подошва'
 );
 
 INSERT INTO product_size (product_id, size, quantity) VALUES
@@ -80,7 +100,13 @@ INSERT INTO product_size (product_id, size, quantity) VALUES
 (1, 42, 2),
 (1, 43, 1),
 (1, 44, 0),
-(1, 45, 0);
+(1, 45, 0),
+(2, 38, 2),
+(2, 39, 4),
+(2, 40, 6),
+(2, 41, 5),
+(2, 42, 3),
+(2, 43, 2);
 
 INSERT INTO user(email, flag_admin) VALUES
 ('admin', 1);

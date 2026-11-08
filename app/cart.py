@@ -54,7 +54,7 @@ def cart():
     """Страница корзины."""
     db = get_db()
     cart_items = db.execute(
-        'SELECT c.id AS item_id,c.product_id, p.title, p.price*(1-p.discount/100.0) AS price, c.quantity, p.category, p.image'
+        'SELECT c.id AS item_id,c.product_id, p.title, p.price * (1 - MAX(COALESCE(p.discount, 0), COALESCE(p.auto_discount, 0)) / 100.0) AS price, c.quantity, p.category, p.image, c.size'
         ' FROM cart c'
         ' JOIN product p ON p.id = c.product_id'
         ' WHERE c.user_id=?', (g.user['id'],)
@@ -70,7 +70,7 @@ def checkout():
     """Страница оформления заказа."""
     db = get_db()
     cart_summary = db.execute(
-        'SELECT p.id,p.title, c.quantity, p.price*(1-p.discount/100.0) AS subtotal'
+        'SELECT p.id,p.title, c.quantity, c.size, p.price * (1 - MAX(COALESCE(p.discount, 0), COALESCE(p.auto_discount, 0)) / 100.0) AS subtotal'
         ' FROM cart c'
         ' JOIN product p ON p.id = c.product_id'
         ' WHERE c.user_id=?', (g.user['id'],)
@@ -83,51 +83,123 @@ def checkout():
 @bp.route('/create_order', methods=['POST'])
 @login_required
 def create_order():
-    name = request.form['name']
-    phone = request.form.get('phone', '')
-    email = request.form.get('email', '')
-    address = request.form.get('city', '') + ', ' + request.form.get('address', '') 
+    name = request.form.get('name', '').strip()
+    phone = request.form.get('phone', '').strip()
+    email = request.form.get('email', '').strip()
+    address = (
+        request.form.get('city', '').strip()
+        + ', '
+        + request.form.get('address', '').strip()
+    )
     pay_method = 1 if request.form.get('payment') == 'card' else 0
     comment = request.form.get('comment', '')
 
     db = get_db()
 
-    cart_items = db.execute(
-        'SELECT p.title, p.price*(1-p.discount/100.0) AS price, c.quantity'
-        ' FROM cart c'
-        ' JOIN product p ON p.id = c.product_id'
-        ' WHERE c.user_id=?', (g.user['id'],)
-    ).fetchall()
+    try:
+        db.execute('BEGIN IMMEDIATE')
 
-    if not cart_items:
-        return redirect(url_for('cart.cart'))
+        cart_items = db.execute(
+            '''
+            SELECT
+                c.product_id,
+                c.size,
+                c.quantity,
+                p.title,
+                p.price * (1 - MAX(COALESCE(p.discount, 0), COALESCE(p.auto_discount, 0)) / 100.0) AS price,
+                ps.quantity AS stock
+            FROM cart c
+            JOIN product p ON p.id = c.product_id
+            LEFT JOIN product_size ps
+                ON ps.product_id = c.product_id AND ps.size = c.size
+            WHERE c.user_id = ?
+            ''',
+            (g.user['id'],)
+        ).fetchall()
 
-    cursor = db.execute(
-        'INSERT INTO orders(name, phone_number, user_id, email, address_delivery, pay_method, comment)'
-        ' VALUES(?,?,?,?,?,?,?)',
-        (name, phone, g.user['id'], email, address, pay_method, comment)
-    )
-    order_id = cursor.lastrowid
+        if not cart_items:
+            db.rollback()
+            flash('Корзина пуста', 'error')
+            return redirect(url_for('cart.cart'))
 
-    for item in cart_items:
-        db.execute(
-            'INSERT INTO order_products(order_id, product, quantity, price) VALUES(?,?,?,?)',
-            (order_id, item['title'], item['quantity'], item['price'])
+        for item in cart_items:
+            if item['stock'] is None or item['stock'] < item['quantity']:
+                db.rollback()
+                flash(
+                    f'Недостаточно товара «{item["title"]}», размер {item["size"]}',
+                    'error'
+                )
+                return redirect(url_for('cart.cart'))
+
+        cursor = db.execute(
+            '''
+            INSERT INTO orders(
+                name, phone_number, user_id, email,
+                address_delivery, pay_method, comment
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (
+                name, phone, g.user['id'], email,
+                address, pay_method, comment
+            )
         )
 
-    db.execute('DELETE FROM cart WHERE user_id=?', (g.user['id'],))
-    db.commit()
+        order_id = cursor.lastrowid
 
+        for item in cart_items:
+            db.execute(
+                '''
+                INSERT INTO order_products(
+                    order_id, product_id, product,
+                    quantity, price, size
+                )
+                VALUES (?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    order_id,
+                    item['product_id'],
+                    item['title'],
+                    item['quantity'],
+                    item['price'],
+                    item['size']
+                )
+            )
+
+            db.execute(
+                '''
+                UPDATE product_size
+                SET quantity = quantity - ?
+                WHERE product_id = ? AND size = ?
+                ''',
+                (
+                    item['quantity'],
+                    item['product_id'],
+                    item['size']
+                )
+            )
+
+        db.execute(
+            'DELETE FROM cart WHERE user_id = ?',
+            (g.user['id'],)
+        )
+
+        db.commit()
+
+    except Exception as e:
+        db.rollback()
+        flash(f'Не удалось оформить заказ: {e}', 'error')
+        return redirect(url_for('cart.checkout'))
+
+    flash('Заказ успешно оформлен!', 'success')
     return redirect(url_for('cart.orders'))
-
 
 @bp.route('/orders')
 @login_required
 def orders():
     db = get_db()
     user_orders = db.execute(
-        'SELECT o.id, o.name, o.phone_number, o.email, o.address_delivery,'
-        ' o.pay_method, o.comment'
+        'SELECT o.id, o.name, o.phone_number, o.email, o.address_delivery, o.pay_method, o.comment, o.created_at'
         ' FROM orders o'
         ' WHERE o.user_id = ?'
         ' ORDER BY o.id DESC',
@@ -137,7 +209,7 @@ def orders():
     orders_with_items = []
     for order in user_orders:
         items = db.execute(
-            'SELECT product, quantity, price FROM order_products WHERE order_id=?',
+            'SELECT product, quantity, price, size FROM order_products WHERE order_id=?',
             (order['id'],)
         ).fetchall()
         total = sum(item['price'] * item['quantity'] for item in items)

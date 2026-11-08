@@ -32,6 +32,8 @@
               <input class="admin-input" name="discount" type="number" placeholder="Скидка %" value="0">
             </div>
             <input class="admin-input" name="category" placeholder="Категория" required>
+            <input class="admin-input" name="manufacturer" placeholder="Производитель" required>
+            <input class="admin-input" name="composition" placeholder="Состав">
             
             <div style="display:flex; gap:0.75rem; align-items:start;">
               <div style="flex:1;">
@@ -52,7 +54,7 @@
 
         <table class="admin-table">
           <thead>
-            <tr><th>ID</th><th>Название</th><th>Цена</th><th>%</th><th>Категория</th><th>Картинка</th><th></th></tr>
+            <tr><th>ID</th><th>Название</th><th>Цена</th><th>%</th><th>Категория</th><th>Производитель</th><th>Состав</th><th>Картинка</th><th></th></tr>
           </thead>
           <tbody>
             {% for p in products %}
@@ -63,6 +65,8 @@
                 <td><input class="admin-input" name="price" type="number" value="{{ p.price }}" style="width:80px;"></td>
                 <td><input class="admin-input" name="discount" type="number" value="{{ p.discount or 0 }}" style="width:60px;"></td>
                 <td><input class="admin-input" name="category" value="{{ p.category }}" style="width:100px;"></td>
+                <td><input class="admin-input" name="manufacturer" value="{{ p.manufacturer or '' }}" placeholder="Производитель" style="width:130px;"></td>
+                <td><input class="admin-input" name="composition" value="{{ p.composition or '' }}" placeholder="Состав" style="width:150px;"></td>
                 <td style="display:flex; gap:0.5rem; align-items:center;">
                   <input type="hidden" name="description" value="{{ p.description or '' }}">
                   <select class="admin-input" name="image" onchange="previewEdit(this, {{ p.id }})" style="width:120px; font-size:0.8rem;">
@@ -82,6 +86,36 @@
             {% endfor %}
           </tbody>
         </table>
+        <h3 style="margin: 2rem 0 1rem;">📏 Остатки по размерам</h3>
+          {% for p in products %}
+          <div style="padding:1rem; margin-bottom:1rem; border:1px solid var(--border); border-radius:12px;">
+              <h4>{{ p.title }}</h4>
+
+              <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+                  {% for s in sizes if s.product_id == p.id %}
+                  <form method="POST"
+                        action="{{ url_for('admin.update_size', product_id=p.id) }}"
+                        style="display:flex; gap:0.4rem; align-items:center;">
+                      <input type="hidden" name="size" value="{{ s.size }}">
+                      <label>{{ s.size }} р.</label>
+                      <input class="admin-input" type="number" name="quantity"
+                            value="{{ s.quantity }}" min="0" style="width:75px;">
+                      <button class="btn btn-primary btn-sm" type="submit">💾</button>
+                  </form>
+                  {% endfor %}
+              </div>
+
+              <form method="POST"
+                    action="{{ url_for('admin.update_size', product_id=p.id) }}"
+                    style="display:flex; gap:0.5rem; margin-top:1rem; align-items:center;">
+                  <input class="admin-input" type="number" name="size"
+                        placeholder="Новый размер" min="1" required style="width:130px;">
+                  <input class="admin-input" type="number" name="quantity"
+                        placeholder="Количество" min="0" required style="width:130px;">
+                  <button class="btn btn-primary btn-sm" type="submit">Добавить размер</button>
+              </form>
+          </div>
+          {% endfor %}
       </div>
 
       <!-- ===== ПОЛЬЗОВАТЕЛИ ===== -->
@@ -138,7 +172,7 @@
 
         <table class="admin-table">
           <thead>
-            <tr><th>ID</th><th>Пользователь</th><th>Товар</th><th>Кол-во</th><th></th></tr>
+            <tr><th>ID</th><th>Пользователь</th><th>Товар</th><th>Размер</th><th>Кол-во</th><th></th></tr>
           </thead>
           <tbody>
             {% for c in carts %}
@@ -146,6 +180,7 @@
               <td>{{ c.id }}</td>
               <td>{{ c.email or 'Гость (0)' }}</td>
               <td>{{ c.title or '❌ Удалён' }}</td>
+              <td>{{ c.size }}</td>
               <td>
                 <form method="POST" action="{{ url_for('admin.update_cart_item', cart_id=c.id) }}" style="display:flex; gap:0.5rem; align-items:center;">
                   <input class="admin-input" name="quantity" type="number" value="{{ c.quantity }}" style="width:60px;" min="1">
@@ -168,17 +203,32 @@
         <h2 style="margin-bottom:1rem;">📋 Заказы</h2>
         <table class="admin-table">
           <thead>
-            <tr><th>ID</th><th>Имя</th><th>Email</th><th>Товары</th><th>Сумма</th><th>Оплата</th><th></th></tr>
+            <tr><th>ID</th><th>Дата</th><th>Аккаунт</th><th>Имя получателя</th><th>Email для связи</th><th>Товары</th><th>Сумма</th><th>Оплата</th><th>Статус</th><th></th></tr>
           </thead>
           <tbody>
             {% for o in orders %}
             <tr>
               <td>{{ o.id }}</td>
+              <td>{{ o.created_at }}</td>
+              <td>{{ o.account_email or 'Аккаунт не найден' }}</td>
               <td>{{ o.name }}</td>
               <td>{{ o.email }}</td>
               <td style="font-size:0.85rem;">{{ o.products }}</td>
               <td>{{ "{:,.0f}".format(o.total or 0).replace(",", " ") }} ₽</td>
               <td>{{ 'Карта' if o.pay_method == 1 else 'Наличные' }}</td>
+              <td>
+                  <form method="POST"
+                        action="{{ url_for('admin.update_order_status', order_id=o.id) }}">
+                      <select name="status" class="admin-input"
+                              onchange="this.form.submit()">
+                          {% for s in ['Новый', 'В обработке', 'Выполнен', 'Отменён'] %}
+                              <option value="{{ s }}" {% if o.status == s %}selected{% endif %}>
+                                  {{ s }}
+                              </option>
+                          {% endfor %}
+                      </select>
+                  </form>
+              </td>
               <td>
                 <form method="POST" action="{{ url_for('admin.delete_order', order_id=o.id) }}" style="display:inline;">
                   <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить заказ №{{ o.id }}?')">🗑</button>

@@ -8,6 +8,7 @@ def get_db():
             current_app.config['DATABASE'],
             detect_types=sqlite3.PARSE_DECLTYPES
         )
+        g.db.execute('PRAGMA foreign_keys = ON')
         g.db.row_factory = sqlite3.Row
 
     return g.db
@@ -24,6 +25,32 @@ def init_db():
         db.executescript(f.read().decode('utf8'))
         db.commit()
 
+def update_auto_discounts():
+    db = get_db()
+
+    db.execute(
+        '''
+        UPDATE product
+        SET auto_discount = CASE
+            WHEN EXISTS (
+                SELECT 1
+                FROM order_products op
+                JOIN orders o ON o.id = op.order_id
+                WHERE op.product_id = product.id
+                  AND date(o.created_at) >= date(
+                      'now', 'localtime', 'start of month', '-1 month'
+                  )
+                  AND date(o.created_at) < date(
+                      'now', 'localtime', 'start of month'
+                  )
+            )
+            THEN 0
+            ELSE 25
+        END
+        '''
+    )
+
+    db.commit()
 
 @click.command('init-db')
 def init_db_command():

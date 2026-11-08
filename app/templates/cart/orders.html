@@ -10,7 +10,12 @@
     {% for entry in orders %}
     <div style="background:var(--card-bg); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.5rem; box-shadow:var(--shadow-sm);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-        <span style="font-weight:700; font-size:1.1rem;">Заказ №{{ entry.order.id }}</span>
+        <div>
+          <span style="font-weight:700; font-size:1.1rem;">Заказ №{{ entry.order.id }}</span>
+          <div style="font-size:0.85rem; color:var(--text-light); margin-top:0.25rem;">
+            📅 {{ entry.order.created_at }}
+          </div>
+        </div>
         <span style="font-weight:700; color:var(--primary);">{{ "{:,.0f}".format(entry.total).replace(",", " ") }} ₽</span>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem; font-size:0.9rem; color:var(--text-light);">
@@ -25,6 +30,7 @@
         <thead>
           <tr style="border-bottom:1px solid var(--border); color:var(--text-light); font-size:0.85rem;">
             <th style="text-align:left; padding:0.5rem;">Товар</th>
+            <th style="text-align:center; padding:0.5rem;">Размер</th>
             <th style="text-align:right; padding:0.5rem;">Цена</th>
             <th style="text-align:right; padding:0.5rem;">Кол-во</th>
             <th style="text-align:right; padding:0.5rem;">Сумма</th>
@@ -34,6 +40,7 @@
           {% for item in entry.products %}
           <tr style="border-bottom:1px solid var(--border);">
             <td style="padding:0.5rem;">{{ item.product }}</td>
+            <td style="text-align:center; padding:0.5rem;">{{ item.size }}</td>
             <td style="text-align:right; padding:0.5rem;">{{ "{:,.0f}".format(item.price).replace(",", " ") }} ₽</td>
             <td style="text-align:right; padding:0.5rem;">{{ item.quantity }}</td>
             <td style="text-align:right; padding:0.5rem; font-weight:600;">{{ "{:,.0f}".format(item.price * item.quantity).replace(",", " ") }} ₽</td>
