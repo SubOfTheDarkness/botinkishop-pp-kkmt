@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 96" role="img" aria-label="Botinki Shop">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#6d28d9"/></linearGradient></defs>
+<path fill="url(#g)" d="M13 57c9-1 17-6 24-13l13-16c3-4 8-5 12-2l14 12c8 7 17 11 28 13l9 2c5 1 8 5 8 10v8c0 5-4 9-9 9H22C12 80 5 74 5 67c0-5 3-9 8-10Z"/>
+<path fill="#171321" d="m48 43 9 5 11 2-9 4-14-3zM72 48l9 5 12 2-8 4-15-4z" opacity=".8"/>
+<path d="M13 66c20 4 42 5 66 2 15-2 26-1 42 3" fill="none" stroke="#f5f3ff" stroke-width="4" stroke-linecap="round"/>
+<path d="m39 47 9 4m-2-10 9 5m12 0 8 5" fill="none" stroke="#f5f3ff" stroke-width="3" stroke-linecap="round"/>
+</svg>

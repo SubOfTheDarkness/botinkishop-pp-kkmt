@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль — Botinki Shop{% endblock %}
+
+{% block content %}
+<main class="container" style="margin-top:2rem;">
+  <h1>👤 {{ g.user.email }}</h1>
+  
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin-top:2rem;">
+
+    <form method="POST" action="{{ url_for('auth.delete_account') }}" style="margin-top:2rem; text-align:center;">
+      <button type="submit" class="btn btn-danger" onclick="return confirm('Удалить аккаунт навсегда? Это действие необратимо.')">
+        🗑 Удалить аккаунт
+      </button>
+    </form>
+
+    <!-- Статистика -->
+    <div style="background:var(--card-bg); border-radius:var(--radius); padding:1.5rem; box-shadow:var(--shadow-sm);">
+      <h3 style="margin-bottom:1rem;">📊 Статистика</h3>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div style="text-align:center; padding:1rem; background:var(--primary-light); border-radius:var(--radius);">
+          <div style="font-size:2rem; font-weight:700; color:var(--primary);">{{ orders|length }}</div>
+          <div style="font-size:0.85rem; color:var(--text-light);">заказов</div>
+        </div>
+        <div style="text-align:center; padding:1rem; background:var(--primary-light); border-radius:var(--radius);">
+          <div style="font-size:2rem; font-weight:700; color:var(--primary);">{{ "{:,.0f}".format(total_spent).replace(",", " ") }} ₽</div>
+          <div style="font-size:0.85rem; color:var(--text-light);">потрачено</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Последний заказ -->
+  {% if last_order %}
+  <div style="background:var(--card-bg); border-radius:var(--radius); padding:1.5rem; margin-top:2rem; box-shadow:var(--shadow-sm);">
+    <h3 style="margin-bottom:1rem;">📦 Последний заказ №{{ last_order.order.id }}</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem; font-size:0.9rem; color:var(--text-light);">
+      <div>👤 {{ last_order.order.name }}</div>
+      <div>📞 {{ last_order.order.phone_number }}</div>
+      <div>📍 {{ last_order.order.address_delivery }}</div>
+      <div>💳 {{ 'Карта' if last_order.order.pay_method == 1 else 'Наличные' }}</div>
+    </div>
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border); color:var(--text-light); font-size:0.85rem;">
+          <th style="text-align:left; padding:0.5rem;">Товар</th>
+          <th style="text-align:right; padding:0.5rem;">Цена</th>
+          <th style="text-align:right; padding:0.5rem;">Кол-во</th>
+          <th style="text-align:right; padding:0.5rem;">Сумма</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in last_order.products %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:0.5rem;">{{ item.product }}</td>
+          <td style="text-align:right; padding:0.5rem;">{{ "{:,.0f}".format(item.price).replace(",", " ") }} ₽</td>
+          <td style="text-align:right; padding:0.5rem;">{{ item.quantity }}</td>
+          <td style="text-align:right; padding:0.5rem; font-weight:600;">{{ "{:,.0f}".format(item.price * item.quantity).replace(",", " ") }} ₽</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div style="text-align:right; margin-top:1rem; font-weight:700; font-size:1.1rem; color:var(--primary);">
+      Итого: {{ "{:,.0f}".format(last_order.total).replace(",", " ") }} ₽
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Все заказы -->
+  <div style="margin-top:2rem;">
+    <h3 style="margin-bottom:1rem;">📋 Все заказы</h3>
+    {% if orders %}
+    {% for entry in orders %}
+    <div style="background:var(--card-bg); border-radius:var(--radius); padding:1rem 1.5rem; margin-bottom:0.75rem; box-shadow:var(--shadow-sm); display:flex; justify-content:space-between; align-items:center;">
+      <span>Заказ №{{ entry.order.id }} — {{ entry.products|length }} товаров</span>
+      <span style="font-weight:700; color:var(--primary);">{{ "{:,.0f}".format(entry.total).replace(",", " ") }} ₽</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--text-light);">У вас пока нет заказов.</p>
+    {% endif %}
+  </div>
+
+</main>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Корзина — Botinki Shop{% endblock %}
+
+{% block content %}
+<main class="container" style="margin-top:2rem;">
+  
+  {% if cart_items %}
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+      <h1>🛒 Корзина</h1>
+      <form method="POST" action="{{ url_for('cart.clear') }}">
+        <button type="submit" class="btn btn-outline" style="font-size:0.9rem;" onclick="return confirm('Очистить корзину?')">🗑 Очистить корзину</button>
+      </form>
+      
+    </div>
+
+    <table class="cart-table">
+      <thead>
+        <tr>
+          <th>Товар</th>
+          <th>Цена</th>
+          <th>Кол-во</th>
+          <th>Сумма</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in cart_items %}
+        <tr id="cart-row-{{ item.item_id }}">
+          <td>
+            <div style="display:flex; align-items:center; gap:1rem;">
+              {% if item.image %}
+                <img src="{{ item.image }}" alt="{{ item.title }}" class="cart-item-image">
+              {% else %}
+                <img src="https://via.placeholder.com/60?text=Нет" alt="{{ item.title }}" class="cart-item-image">
+              {% endif %}
+              <div>
+                <strong>
+                  <a href="{{ url_for('catalogue.product', product_id=item.product_id) }}" 
+                     style="color:inherit; text-decoration:none;">
+                    {{ item.title }}
+                  </a>
+                </strong>
+                <br><small style="color:#64748b;">{{ item.category }}</small>
+              </div>
+            </div>
+          </td>
+          <td class="item-price">{{ "{:,.0f}".format(item.price).replace(",", " ") }} ₽</td>
+          <td>
+            <div class="quantity-selector" style="margin:0;">
+              <button type="button" onclick="changeQty(this, -1, {{ item.item_id }}, {{ item.price }})">−</button>
+              <span class="qty-display" id="qty-{{ item.item_id }}">{{ item.quantity }}</span>
+              <button type="button" onclick="changeQty(this, 1, {{ item.item_id }}, {{ item.price }})">+</button>
+            </div>
+          </td>
+          <td class="item-total" id="total-{{ item.item_id }}">
+            <strong>{{ "{:,.0f}".format(item.price * item.quantity).replace(",", " ") }} ₽</strong>
+          </td>
+          <td>
+            <button id="btn-del-{{ item.item_id }}" onclick="delFromCart({{ item.item_id }})" class="btn btn-danger" style="padding:0.4rem 0.8rem; border-radius:50%;" 
+                    title="Удалить">✕</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="cart-summary" style="text-align:center">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid #e2e8f0;">
+        <span style="color:#64748b;">Товары ({{ cart_items|length }})</span>
+        <span id="subtotal">{{ "{:,.0f}".format(total).replace(",", " ") }} ₽</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <span style="color:#64748b;">Доставка</span>
+        <span style="color:#22c55e;">Бесплатно</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <span style="font-size:1.2rem; font-weight:600;">Итого</span>
+        <script>updateGrandTotal()</script>
+        <span class="total" id="grand-total">{{ "{:,.0f}".format(total).replace(",", " ") }} ₽</span>
+      </div>
+      <a href="{{ url_for('cart.checkout') }}" class="btn btn-primary" style="width:100%; font-size:1.1rem;">
+        🚀 Оформить заказ
+      </a>
+      <a href="{{ url_for('cart.orders') }}" class="btn btn-primary">
+        📋 Мои заказы
+      </a>
+      <a href="{{ url_for('catalogue.catalogue') }}" style="display:block; text-align:center; margin-top:1rem; color:#6366f1;">
+        ← Продолжить покупки
+      </a>
+    </div>
+
+  {% else %}
+    <div class="empty-state">
+      <div class="icon">🛒</div>
+      <h2>Ваша корзина пуста</h2>
+      <p>Добавьте товары из каталога, чтобы сделать заказ</p>
+      <a href="{{ url_for('catalogue.catalogue') }}" class="btn btn-primary">
+        Перейти в каталог
+      </a>
+      <a href="{{ url_for('cart.orders') }}" class="btn btn-primary">
+        📋 Мои заказы
+      </a>
+    </div>
+  {% endif %}
+
+</main>
+
+<script>
+  function changeQty(btn, delta, itemId, price) {
+    const display = document.getElementById('qty-' + itemId);
+    let current = parseInt(display.textContent);
+    current = Math.max(1, current + delta);
+    
+    fetch('{{ url_for("cart.update_count") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: current, item_id: itemId })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'success') {
+        display.textContent = current;
+        
+        const totalCell = document.getElementById('total-' + itemId);
+        const formatted = (price * current).toLocaleString('ru-RU') + ' ₽';
+        totalCell.innerHTML = '<strong>' + formatted + '</strong>';
+        
+        updateGrandTotal();
+      }
+      if (data.status == 'error') {
+        console.warn('Ошибка:', data.message);
+        showToast(data.message, "error");
+      }
+    })
+    .catch(function(err) {
+      console.error('Ошибка:', err);
+      showToast(err,'error');
+    });
+  }
+  function delFromCart(itemId) {
+    fetch('{{ url_for("cart.delete_product") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'success') {
+        const product_cell = document.getElementById('cart-row-' + itemId);
+        product_cell.remove();
+        updateGrandTotal();
+      }
+      if (data.status == 'error') {
+        console.warn('Ошибка:', data.message);
+        showToast(data.message, "error");
+      }
+    })
+    .catch(function(err) {
+      console.error('Ошибка:', err);
+      showToast(err,'error');
+    });
+  }
+  function updateGrandTotal() {
+    let grandTotal = 0;
+    document.querySelectorAll('.item-total strong').forEach(function(el) {
+      const text = el.textContent.replace(' ₽', '').replace(/\s/g, '');
+      grandTotal += parseInt(text);
+    });
+    const formatted = grandTotal.toLocaleString('ru-RU') + ' ₽';
+    document.getElementById('subtotal').textContent = formatted;
+    document.getElementById('grand-total').textContent = formatted;
+    if (grandTotal===0){
+      history.go(0);
+    }
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Админ-панель — Botinki Shop{% endblock %}
+
+{% block extra_head %}{% endblock %}
+
+{% block content %}
+<main class="container">
+  <div class="admin-layout">
+    
+    <aside class="admin-sidebar">
+      <h3 style="margin-bottom:1rem;">⚙️ Админ</h3>
+      <a class="active" onclick="switchTab('products')">📦 Товары</a>
+      <a onclick="switchTab('users')">👥 Пользователи</a>
+      <a onclick="switchTab('carts')">🛒 Корзины</a>
+      <a onclick="switchTab('orders')">📋 Заказы</a>
+    </aside>
+
+    <section>
+      
+      <!-- ===== ТОВАРЫ ===== -->
+      <div id="tab-products" style="display:none;">
+        <h2 style="margin-bottom:1rem;">📦 Товары</h2>
+
+        <details>
+          <summary>+ Добавить товар</summary>
+          <form method="POST" action="{{ url_for('admin.add_product') }}" class="form-row" style="margin-top:1rem;">
+            <input class="admin-input" name="title" placeholder="Название" required>
+            <textarea class="admin-input" name="description" placeholder="Описание" rows="2"></textarea>
+            <div class="form-row form-row-2">
+              <input class="admin-input" name="price" type="number" placeholder="Цена" required>
+              <input class="admin-input" name="discount" type="number" placeholder="Скидка %" value="0">
+            </div>
+            <input class="admin-input" name="category" placeholder="Категория" required>
+            
+            <div style="display:flex; gap:0.75rem; align-items:start;">
+              <div style="flex:1;">
+                <select class="admin-input" name="image" id="image-select" onchange="previewImage(this)" style="margin-bottom:0.5rem;">
+                  <option value="">Без картинки</option>
+                  {% for img in images %}
+                  <option value="/static/images/{{ img }}">{{ img }}</option>
+                  {% endfor %}
+                </select>
+                <input class="admin-input" name="image_url" id="image-url" placeholder="Или вставьте URL" oninput="previewURL(this)">
+              </div>
+              <img id="image-preview" class="preview-img" src="" alt="Превью" style="display:none;">
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Добавить товар</button>
+          </form>
+        </details>
+
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>Название</th><th>Цена</th><th>%</th><th>Категория</th><th>Картинка</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+            <tr>
+              <td>{{ p.id }}</td>
+              <form method="POST" action="{{ url_for('admin.edit_product', product_id=p.id) }}" style="display:contents;">
+                <td><input class="admin-input" name="title" value="{{ p.title }}"></td>
+                <td><input class="admin-input" name="price" type="number" value="{{ p.price }}" style="width:80px;"></td>
+                <td><input class="admin-input" name="discount" type="number" value="{{ p.discount or 0 }}" style="width:60px;"></td>
+                <td><input class="admin-input" name="category" value="{{ p.category }}" style="width:100px;"></td>
+                <td style="display:flex; gap:0.5rem; align-items:center;">
+                  <input type="hidden" name="description" value="{{ p.description or '' }}">
+                  <select class="admin-input" name="image" onchange="previewEdit(this, {{ p.id }})" style="width:120px; font-size:0.8rem;">
+                    <option value="">—</option>
+                    {% for img in images %}
+                    <option value="/static/images/{{ img }}" {% if p.image == '/static/images/' + img %}selected{% endif %}>{{ img }}</option>
+                    {% endfor %}
+                  </select>
+                  <img id="preview-{{ p.id }}" class="preview-img-sm" src="{{ p.image or '' }}" style="{% if not p.image %}display:none;{% endif %}">
+                  <button type="submit" class="btn btn-primary btn-sm">💾</button>
+              </form>
+                  <form method="POST" action="{{ url_for('admin.delete_product', product_id=p.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить «{{ p.title }}»?')">🗑</button>
+                  </form>
+                </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===== ПОЛЬЗОВАТЕЛИ ===== -->
+      <div id="tab-users" style="display:none;">
+        <h2 style="margin-bottom:1rem;">👥 Пользователи</h2>
+
+        <details>
+            <summary>+ Добавить пользователя</summary>
+            <form method="POST"
+                  action="{{ url_for('admin.add_user') }}"
+                  class="form-row"
+                  style="margin-top:1rem;">
+
+                <input class="admin-input"
+                      name="email"
+                      type="text"
+                      placeholder="Логин"
+                      required>
+
+                <button type="submit" class="btn btn-primary">
+                    Добавить пользователя
+                </button>
+            </form>
+        </details>
+
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>Email</th><th>Админ</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td>{{ u.id }}</td>
+              <td>{{ u.email }}</td>
+              <td>
+                <button type="submit" class="btn-icon">
+                  {% if u.flag_admin %}✅{% else %}⬜{% endif %}
+                </button>
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить {{ u.email }}?')">🗑</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===== КОРЗИНЫ ===== -->
+      <div id="tab-carts" style="display:none;">
+        <h2 style="margin-bottom:1rem;">🛒 Корзины</h2>
+
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>Пользователь</th><th>Товар</th><th>Кол-во</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for c in carts %}
+            <tr>
+              <td>{{ c.id }}</td>
+              <td>{{ c.email or 'Гость (0)' }}</td>
+              <td>{{ c.title or '❌ Удалён' }}</td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.update_cart_item', cart_id=c.id) }}" style="display:flex; gap:0.5rem; align-items:center;">
+                  <input class="admin-input" name="quantity" type="number" value="{{ c.quantity }}" style="width:60px;" min="1">
+                  <button type="submit" class="btn btn-primary btn-sm">💾</button>
+                </form>
+              </td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.delete_cart_item', cart_id=c.id) }}" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить запись?')">🗑</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- ===== ЗАКАЗЫ ===== -->
+      <div id="tab-orders" style="display:none;">
+        <h2 style="margin-bottom:1rem;">📋 Заказы</h2>
+        <table class="admin-table">
+          <thead>
+            <tr><th>ID</th><th>Имя</th><th>Email</th><th>Товары</th><th>Сумма</th><th>Оплата</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for o in orders %}
+            <tr>
+              <td>{{ o.id }}</td>
+              <td>{{ o.name }}</td>
+              <td>{{ o.email }}</td>
+              <td style="font-size:0.85rem;">{{ o.products }}</td>
+              <td>{{ "{:,.0f}".format(o.total or 0).replace(",", " ") }} ₽</td>
+              <td>{{ 'Карта' if o.pay_method == 1 else 'Наличные' }}</td>
+              <td>
+                <form method="POST" action="{{ url_for('admin.delete_order', order_id=o.id) }}" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Удалить заказ №{{ o.id }}?')">🗑</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+  </div>
+</main>
+
+
+<script>
+  function switchTab(tab) {
+    document.querySelectorAll('[id^="tab-"]').forEach(function(el) { el.style.display = 'none'; });
+    document.getElementById('tab-' + tab).style.display = 'block';
+    document.querySelectorAll('.admin-sidebar a').forEach(function(a) { a.classList.remove('active'); });
+    event.target.classList.add('active');
+    const url = new URL(window.location);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url);
+  }
+
+  // При загрузке
+  const params = new URLSearchParams(window.location.search);
+  const activeTab = params.get('tab') || 'products';
+  document.getElementById('tab-' + activeTab).style.display = 'block';
+  document.querySelectorAll('.admin-sidebar a').forEach(function(a) {
+    a.classList.remove('active');
+    const tabNames = { products: 'Товары', users: 'Пользователи', carts: 'Корзины', orders: 'Заказы' };
+    if (a.textContent.trim().includes(tabNames[activeTab])) {
+      a.classList.add('active');
+    }
+  });
+
+  function previewImage(select) {
+    const preview = document.getElementById('image-preview');
+    const urlInput = document.getElementById('image-url');
+    if (select.value) {
+      preview.src = select.value;
+      preview.style.display = 'block';
+      urlInput.value = '';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  function previewURL(input) {
+    const preview = document.getElementById('image-preview');
+    const select = document.getElementById('image-select');
+    if (input.value) {
+      preview.src = input.value;
+      preview.style.display = 'block';
+      select.value = '';
+    } else if (!select.value) {
+      preview.style.display = 'none';
+    }
+  }
+
+  function previewEdit(select, id) {
+    const preview = document.getElementById('preview-' + id);
+    if (select.value) {
+      preview.src = select.value;
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+</script>
+{% endblock %}

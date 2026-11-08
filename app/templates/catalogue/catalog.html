@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог — Botinki Shop{% endblock %}
+
+{% block content %}
+<!-- Hero-секция -->
+<section class="hero">
+  <h1>Коллекция 2026</h1>
+  <p>Открой для себя стильные товары по лучшим ценам</p>
+  <a href="#catalogue" class="btn btn-primary" style="background:white; color:#8b5cf6;">
+    Смотреть новинки →
+  </a>
+</section>
+
+<main class="container" id="catalogue">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <h2>🔥 Популярные товары</h2>
+    <span style="color:#64748b;">Показано {{ products|length }} товаров</span>
+  </div>
+
+  <!-- Фильтры -->
+  <div class="filters">
+    <form method="GET" action="{{ url_for('catalogue.catalogue', _anchor='catalogue') }}" style="display:flex; gap:1rem; flex-wrap:wrap; align-items:center; width:100%;">
+      <input
+          type="text"
+          id="search-input"
+          name="search"
+          placeholder="🔍 Поиск товаров..."
+          value="{{ search }}"
+          style="flex:1; min-width:200px;">
+      
+      <select name="category" onchange="this.form.submit()">
+        <option value="">Все категории</option>
+        {% for cat in categories %}
+        <option value="{{ cat.category }}" {% if category_filter == cat.category %}selected{% endif %}>
+          {% if cat.category == 'Электроника' %}📱
+          {% elif cat.category == 'Одежда' %}👕
+          {% elif cat.category == 'Книги' %}📚
+          {% elif cat.category == 'Фрукты' %}🍎
+          {% elif cat.category == 'Обувь' %}👢
+          {% else %}📦{% endif %}
+          {{ cat.category }}
+        </option>
+        {% endfor %}
+      </select>
+      
+      <select name="sort_direction" onchange="this.form.submit()">
+        <option value="0" {% if sort_direction == '0' %}selected{% endif %}>⬇ По цене (убыв.)</option>
+        <option value="1" {% if sort_direction == '1' %}selected{% endif %}>⬆ По цене (возр.)</option>
+      </select>
+      
+      {% if search or category_filter %}
+      <a href="{{ url_for('catalogue.catalogue', _anchor='catalogue') }}" class="btn btn-outline" style="font-size:0.85rem;">✕ Сбросить</a>
+      {% endif %}
+      
+      <button type="submit" class="btn btn-primary" style="font-size:0.9rem;">🔍 Найти</button>
+    </form>
+  </div>
+
+  {% if products %}
+  <!-- Карточки товаров -->
+  <div class="product-grid">
+    {% for product in products %}
+    <a href="{{ url_for('catalogue.product', product_id=product.id) }}" style="text-decoration:none; color:inherit;">
+      <div class="product-card">
+        {% if product.discount and product.discount > 0 %}
+          <span class="badge">−{{ product.discount }}%</span>
+        {% endif %}
+        
+        <div class="image-wrapper">
+          {% if product.image %}
+            <img src="{{ product.image }}" alt="{{ product.title }}">
+          {% else %}
+            <img src="https://via.placeholder.com/400x300?text=Нет+фото" alt="{{ product.title }}">
+          {% endif %}
+        </div>
+        
+        <div class="card-body">
+          <span class="category">
+            {% if product.category == 'Электроника' %}📱
+            {% elif product.category == 'Одежда' %}👕
+            {% elif product.category == 'Книги' %}📚
+            {% elif product.category == 'Фрукты' %}🍎
+            {% elif product.category == 'Обувь' %}👢
+            {% else %}📦{% endif %}
+            {{ product.category }}
+          </span>
+          <h3>{{ product.title }}</h3>
+          {% if product.discount and product.discount > 0 %}
+            {% set new_price = (product.price * (1 - product.discount/100))|round|int %}
+            <span class="price">{{ "{:,.0f}".format(new_price).replace(",", " ") }} ₽</span>
+            <span class="old-price">{{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽</span>
+          {% else %}
+            <span class="price">{{ "{:,.0f}".format(product.price).replace(",", " ") }} ₽</span>
+          {% endif %}
+          
+          {% set in_cart = namespace(yes=false) %}
+          {% for cart_item in carts %}
+            {% if product.id == cart_item.product_id %}
+              {% set in_cart.yes = true %}
+            {% endif %}
+          {% endfor %}
+
+          {% if in_cart.yes %}
+            <button class="btn btn-outline in-cart-btn" disabled style="width:100%; cursor:default; opacity:0.7;" onclick="event.preventDefault(); event.stopPropagation();">
+              ✅ В корзине
+            </button>
+          {% else %}
+            <button class="btn btn-primary add-to-cart-btn" data-product-id="{{ product.id }}" style="width:100%;" onclick="event.preventDefault(); event.stopPropagation();">
+              🛒 В корзину
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="icon">🔍</div>
+    <h2>Ничего не найдено</h2>
+    {% if search %}
+    <p>По запросу «{{ search }}» товаров не найдено</p>
+    {% endif %}
+    <a href="{{ url_for('catalogue.catalogue', _anchor='catalogue') }}" class="btn btn-primary">Сбросить поиск</a>
+  </div>
+  {% endif %}
+</main>
+
+<script>
+document.querySelectorAll('.add-to-cart-btn').forEach(function(button) {
+  button.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const btn = this;
+    const productId = btn.getAttribute('data-product-id');
+    
+    fetch('{{ url_for("catalogue.to_cart") }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: 1, product_id: productId })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.status === 'success') {
+        btn.disabled = true;
+        btn.textContent = '✅ В корзине';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline', 'in-cart-btn');
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'default';
+        showToast("Добавлено в корзину", "success");
+      }
+      else if (data.status === 'error') {
+        console.warn('Ошибка:', data.message);
+        showToast(data.message, "error");
+      }
+    })
+    .catch(function(err) {
+      console.error('Ошибка:', err);
+      showToast(err, "error");
+    });
+  });
+});
+</script>
+{% endblock %}
